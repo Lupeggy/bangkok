@@ -37,6 +37,26 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-
 .nav-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
 
 .main{max-width:1200px;margin:0 auto;padding:28px 14px 80px}
+@media(max-width:600px){
+  .main{padding:16px 10px 80px}
+  .hero-inner{padding:28px 16px 24px}
+  .hero-left h1{font-size:28px}
+  .hbadge{font-size:11px;padding:4px 10px}
+  .countdown-box{padding:12px 18px}
+  .countdown-box .cnum{font-size:34px}
+  .nav-btn{padding:10px 12px;font-size:12px}
+  .sec-h h2{font-size:18px}
+  .bh{grid-template-columns:1fr!important;gap:12px}
+  .bcats{grid-template-columns:1fr 1fr}
+  .budget-layout{grid-template-columns:1fr!important}
+  .swipe-layout{grid-template-columns:1fr!important}
+  .weather-layout{grid-template-columns:1fr!important}
+  .mc-grid{grid-template-columns:1fr 1fr}
+  .card-stack{height:340px}
+  .sw-btn{width:48px;height:48px;font-size:18px}
+  .mb{padding:20px 16px}
+  .frow{grid-template-columns:1fr}
+}
 .section{display:none}
 .section.active{display:block}
 
@@ -51,10 +71,18 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-
 
 /* =================== DRAG SCHEDULE =================== */
 .schedule-layout{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
-@media(max-width:860px){.schedule-layout{grid-template-columns:1fr}}
+@media(max-width:860px){
+  .schedule-layout{grid-template-columns:1fr}
+  .pool-panel{position:fixed;bottom:56px;left:0;right:0;z-index:90;border-radius:20px 20px 0 0;max-height:55vh;display:flex;flex-direction:column;}
+  .pool-panel.pool-collapsed .pool-list{display:none}
+  .pool-list{flex:1;overflow-y:auto}
+  .pool-toggle{display:flex!important}
+  .days-cols{padding-bottom:64px}
+}
+@media(min-width:861px){.pool-toggle{display:none!important}}
 
 /* LEFT: pool */
-.pool-panel{background:var(--card);border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow);position:sticky;top:72px}
+.pool-panel{background:var(--card);border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow);position:sticky;top:72px;z-index:10}
 .pool-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .pool-header h3{font-size:14px;font-weight:700}
 .pool-add-btn{background:var(--orange);color:#fff;border:none;border-radius:16px;padding:4px 11px;font-size:11px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;font-weight:500}
@@ -282,9 +310,12 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-
   <div class="schedule-layout">
     <!-- LEFT POOL -->
     <div class="pool-panel">
-      <div class="pool-header">
-        <h3>🗂 景點庫</h3>
-        <button class="pool-add-btn" onclick="openAddPool()">+ 新增</button>
+      <div class="pool-header" onclick="togglePool()" style="cursor:pointer">
+        <h3>🗂 景點庫 <span id="poolCount" style="font-size:11px;color:var(--muted);font-weight:400"></span></h3>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="pool-toggle" id="poolToggleIcon" style="font-size:18px;color:var(--muted)">▲</span>
+          <button class="pool-add-btn" onclick="event.stopPropagation();openAddPool()">+ 新增</button>
+        </div>
       </div>
       <div class="pool-list" id="poolList"></div>
     </div>
@@ -702,11 +733,21 @@ function delPoolCard(id){
 
 const dotColor={food:'#F4B942',sight:'#FF6B35',hotel:'#7F77DD',transport:'#1D9E75'};
 
+function togglePool(){
+  if(window.innerWidth > 860) return;
+  const panel = document.querySelector('.pool-panel');
+  const icon = document.getElementById('poolToggleIcon');
+  panel.classList.toggle('pool-collapsed');
+  if(icon) icon.textContent = panel.classList.contains('pool-collapsed') ? '▼' : '▲';
+}
+
 function renderPool(){
   const pl=document.getElementById('poolList');
   if(!pl) return;
   // group: recommended vs user-added (id starts with 'p' + number <= 12 = default)
-  pl.innerHTML='<div class="pool-section-label">✨ 推薦景點</div>'+
+  const cnt = document.getElementById('poolCount');
+  if(cnt) cnt.textContent = '('+poolCards.length+')';
+  pl.innerHTML='<div class="pool-section-label">✨ 推薦景點 — 拖進行程 👇</div>'+
     poolCards.map(c=>`
       <div class="pool-card" id="pc_${c.id}" draggable="true"
            ondragstart="onPoolDragStart(event,'${c.id}')"
@@ -742,7 +783,7 @@ function renderSchedule(){
         <span class="si-dot" style="background:${dotColor[item.type]||'#FF6B35'}"></span>
         <div class="si-body">
           <div class="si-time">${item.time}</div>
-          <div class="si-name">${item.emoji} ${item.name}</div>
+          <div class="si-name">${item.emoji||''} ${item.name||''}</div>
           ${item.sub?`<div class="si-sub">${item.sub}</div>`:''}
           <div class="si-tags">${(item.tags||[]).map(t=>`<span class="tag ${tagCls[t]}">${tagLbl[t]}</span>`).join('')}</div>
         </div>
@@ -1264,12 +1305,15 @@ async function bootApp(){
     document.querySelector('.main').style.paddingBottom='60px';
     renderAll();renderSwipe();renderBudget();renderForecast();
     toast('🟢 已連線，即時同步開啟！');
+    // auto-collapse pool on mobile
+    if(window.innerWidth<=860){ const p=document.querySelector('.pool-panel'); const ic=document.getElementById('poolToggleIcon'); if(p){p.classList.add('pool-collapsed'); if(ic)ic.textContent='▼';} }
   }catch(e){
     console.error(e);
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('appWrapper').style.display='block';
     renderAll();renderSwipe();renderBudget();renderForecast();
     toast('⚠️ Firebase 連線失敗，離線模式');
+    if(window.innerWidth<=860){ const p=document.querySelector('.pool-panel'); const ic=document.getElementById('poolToggleIcon'); if(p){p.classList.add('pool-collapsed'); if(ic)ic.textContent='▼';} }
   }
 }
 
