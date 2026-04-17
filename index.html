@@ -322,7 +322,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-
   <div class="hero-inner">
     <div class="hero-left">
       <h1>
-        <span id="tripSubtitle" style="cursor:pointer;font-size:.45em;opacity:.8;font-family:'Noto Sans TC',sans-serif;font-weight:400;letter-spacing:0;display:block;margin-bottom:4px" onclick="openTripSettings()" title="點擊編輯">✈️ Bangkok 2026 ✏️</span>
+        <span id="tripSubtitle" style="cursor:pointer;font-size:.45em;opacity:.8;font-family:'Noto Sans TC',sans-serif;font-weight:400;letter-spacing:0;display:block;margin-bottom:4px" onclick="openTripSettings()" title="點擊編輯">Bangkok 2026 ✏️</span>
         <span id="tripTitle" style="cursor:pointer;font-size:clamp(42px,7vw,72px);line-height:1" onclick="openTripSettings()" title="點擊編輯">曼谷之旅</span>
       </h1>
       <div class="hero-dates">
@@ -520,7 +520,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-
 
 <!-- MODAL: Trip Settings -->
 <div class="mo" id="tripModal"><div class="mb" style="max-width:420px">
-  <div class="mt">✈️ 旅行設定</div>
+  <div class="mt">旅行設定</div>
   <div class="ff"><label>旅行副標題（如：Bangkok 2026）</label><input type="text" id="tsSubtitle" placeholder="Bangkok 2026"/></div>
   <div class="ff"><label>旅行主標題（如：曼谷之旅）</label><input type="text" id="tsTitle" placeholder="曼谷之旅"/></div>
   <div class="ff">
@@ -593,10 +593,12 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-
 
 <!-- MODAL: Edit Schedule Item time -->
 <div class="mo" id="siModal"><div class="mb">
-  <div class="mt">編輯時間</div>
+  <div class="mt" id="siModalTitle">編輯行程</div>
   <input type="hidden" id="siDi"><input type="hidden" id="siIi">
+  <div class="ff"><label>行程名稱</label><input type="text" id="siName" placeholder="例：臥佛寺 Wat Pho"/></div>
   <div class="ff"><label>時間 (如 09:00)</label><input type="text" id="siTime" placeholder="09:00" maxlength="5"/></div>
-  <div class="ff"><label>備註</label><input type="text" id="siNote" placeholder="額外說明（選填）"/></div>
+  <div class="ff"><label>備註 / 說明</label><input type="text" id="siNote" placeholder="額外說明（選填）"/></div>
+  <div class="ff"><label>費用</label><input type="text" id="siCostEdit" placeholder="例：฿300 或 免費"/></div>
   <div class="fa"><button class="bc" onclick="closeSI()">取消</button><button class="bs" onclick="saveSI()">儲存</button></div>
 </div></div>
 
@@ -1154,8 +1156,8 @@ function renderSchedule(){
 
     return `<div class="day-col ${isToday?'today-col':''}" id="day_${di}">
       <div class="day-col-hdr" style="background:linear-gradient(135deg,${day.color},${day.color}bb)">
-        <div class="dinfo">
-          <div class="dlabel">${day.label} · ${day.theme}</div>
+        <div class="dinfo" style="cursor:pointer" onclick="editDayTheme(${di})" title="點擊編輯標題">
+          <div class="dlabel">${day.label} · ${day.theme} <span style="font-size:11px;opacity:.6">✏️</span></div>
           <div class="ddate">${day.date}</div>
         </div>
         <div class="dhdr-right">
@@ -1211,6 +1213,8 @@ function addPoolToDay(poolId, dayIdx){
   const newItem = {id:'s'+Date.now(),poolId:c.id,emoji:c.emoji,name:c.name,sub:c.tip||'',time:'09:00',cost:c.price,tags:[c.type==='food'?'food':'paid'],type:c.type};
   scheduleData[dayIdx].items.push(newItem);
   scheduleData[dayIdx].items.sort((a,b)=>a.time.localeCompare(b.time));
+  poolCards = poolCards.filter(p=>p.id!==poolId);
+  renderPool();
   document.getElementById('addToDayOverlay')?.remove();
   // collapse pool on mobile
   if(window.innerWidth<=860){ const p=document.querySelector('.pool-panel'); if(p){ p.classList.add('pool-collapsed'); const ic=document.getElementById('poolToggleIcon'); if(ic)ic.textContent='▼'; } }
@@ -1314,6 +1318,8 @@ function onZoneDrop(e, toDayIdx){
     const c = dragItem.card;
     const newItem = {id:'s'+(Date.now()),poolId:c.id,emoji:c.emoji,name:c.name,sub:c.tip||'',time:'00:00',cost:c.price,tags:[c.type==='food'?'food':'paid'],type:c.type};
     scheduleData[toDayIdx].items.push(newItem);
+    poolCards = poolCards.filter(p=>p.id!==c.id);
+    renderPool();
     openEditSI_inline(toDayIdx, scheduleData[toDayIdx].items.length-1);
   } else if(dragItem.type==='sched'){
     const {fromDayIdx, fromItemIdx} = dragItem;
@@ -1337,6 +1343,8 @@ function onItemDrop(e, toDayIdx, toItemIdx){
     const c=dragItem.card;
     const newItem={id:'s'+(Date.now()),poolId:c.id,emoji:c.emoji,name:c.name,sub:c.tip||'',time:'00:00',cost:c.price,tags:[c.type==='food'?'food':'paid'],type:c.type};
     scheduleData[toDayIdx].items.splice(toItemIdx,0,newItem);
+    poolCards = poolCards.filter(p=>p.id!==c.id);
+    renderPool();
     renderSchedule();saveAll();toast('✅ 已加入行程！');
     openEditSI_inline(toDayIdx, toItemIdx);
   } else if(dragItem.type==='sched'){
@@ -1351,10 +1359,14 @@ function onItemDrop(e, toDayIdx, toItemIdx){
 
 // ============ EDIT SI ============
 function openEditSI(di,ii){
+  const item = scheduleData[di].items[ii];
   document.getElementById('siDi').value=di;
   document.getElementById('siIi').value=ii;
-  document.getElementById('siTime').value=scheduleData[di].items[ii].time||'';
-  document.getElementById('siNote').value=scheduleData[di].items[ii].sub||'';
+  document.getElementById('siModalTitle').textContent='編輯行程';
+  document.getElementById('siName').value=(item.emoji&&!item.name.startsWith(item.emoji)?item.emoji+' ':'')+item.name||'';
+  document.getElementById('siTime').value=item.time||'';
+  document.getElementById('siNote').value=item.sub||'';
+  document.getElementById('siCostEdit').value=item.cost||'';
   document.getElementById('siModal').classList.add('open');
 }
 function openEditSI_inline(di,ii){ openEditSI(di,ii); }
@@ -1362,9 +1374,17 @@ function closeSI(){document.getElementById('siModal').classList.remove('open')}
 function saveSI(){
   const di=parseInt(document.getElementById('siDi').value);
   const ii=parseInt(document.getElementById('siIi').value);
+  const nameVal=document.getElementById('siName').value.trim();
+  if(nameVal){
+    // split emoji from name if present
+    const emojiMatch=nameVal.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u);
+    if(emojiMatch){ scheduleData[di].items[ii].emoji=emojiMatch[0].trim(); scheduleData[di].items[ii].name=nameVal.slice(emojiMatch[0].length).trim()||nameVal; }
+    else { scheduleData[di].items[ii].name=nameVal; }
+  }
   scheduleData[di].items[ii].time=document.getElementById('siTime').value||'00:00';
-  const note=document.getElementById('siNote').value;
-  if(note) scheduleData[di].items[ii].sub=note;
+  scheduleData[di].items[ii].sub=document.getElementById('siNote').value;
+  const costVal=document.getElementById('siCostEdit').value.trim();
+  if(costVal) scheduleData[di].items[ii].cost=costVal;
   scheduleData[di].items.sort((a,b)=>a.time.localeCompare(b.time));
   closeSI();renderSchedule();saveAll();toast('✅ 已儲存');
 }
@@ -1372,6 +1392,36 @@ function delSI(di,ii){
   const n=scheduleData[di].items[ii].name;
   scheduleData[di].items.splice(ii,1);
   renderSchedule();saveAll();toast('已移除：'+n);
+}
+
+function editDayTheme(di){
+  const day=scheduleData[di];
+  const existing=document.getElementById('dayThemeOv'); if(existing) existing.remove();
+  const ov=document.createElement('div');
+  ov.id='dayThemeOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)';
+  ov.innerHTML=`<div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.18)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">${day.label} 標題</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px">主題名稱</label>
+      <input id="dayThemeInput" type="text" value="${day.theme}"
+        style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'Noto Sans TC',sans-serif;outline:none;background:var(--bg)"
+        onkeydown="if(event.key==='Enter') saveDayTheme(${di})"/>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="document.getElementById('dayThemeOv').remove()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);background:none;font-size:13px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;color:var(--muted)">取消</button>
+      <button onclick="saveDayTheme(${di})" style="flex:2;padding:10px;border-radius:10px;background:var(--orange);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif">儲存</button>
+    </div>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  document.body.appendChild(ov);
+  setTimeout(()=>document.getElementById('dayThemeInput')?.select(),50);
+}
+function saveDayTheme(di){
+  const val=document.getElementById('dayThemeInput')?.value.trim();
+  if(val) scheduleData[di].theme=val;
+  document.getElementById('dayThemeOv')?.remove();
+  renderSchedule();saveAll();toast('✅ 已更新標題');
 }
 
 // ============ SWIPE ============
@@ -2157,7 +2207,7 @@ function saveTripSettings(){
 function applyTripSettings(){
   const sub = document.getElementById('tripSubtitle');
   const tit = document.getElementById('tripTitle');
-  if(sub) sub.textContent = '✈️ ' + tripSettings.subtitle + ' ✏️';
+  if(sub) sub.textContent = tripSettings.subtitle + ' ✏️';
   if(tit) tit.textContent = tripSettings.title;
   const hero = document.getElementById('heroEl');
   if(hero){
