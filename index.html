@@ -805,12 +805,12 @@ function initCP(){
 }
 function openAddMember(){
   editMId=null; selColor=COLORS[members.length%COLORS.length];
-  document.getElementById('mMTitle').textContent='新增旅伴';
-  document.getElementById('mName').value='';
-  const av=document.getElementById('mPhotoAvatar');
-  av.style.background='#ddd'; av.innerHTML='📷'; av.style.borderColor='rgba(0,0,0,.15)';
-  document.getElementById('mRemovePhotoBtn').style.display='none';
-  document.getElementById('mDeleteBtn').style.display='none';
+  const titleEl=document.getElementById('mMTitle'); if(titleEl) titleEl.textContent='新增旅伴';
+  const nameEl=document.getElementById('mName'); if(nameEl) nameEl.value='';
+  const av=document.getElementById('mAvatarPreview');
+  if(av){ av.style.background='#ddd'; av.innerHTML='📷'; av.style.borderColor='rgba(0,0,0,.15)'; }
+  const rmBtn=document.getElementById('mRemovePhotoBtn'); if(rmBtn) rmBtn.style.display='none';
+  const delBtn=document.getElementById('mDeleteBtn'); if(delBtn) delBtn.style.display='none';
   initCP();
   document.getElementById('mModal').classList.add('open');
 }
@@ -821,7 +821,7 @@ function openEditMember(id){
   document.getElementById('mName').value=m.name;
   initCP();
   // avatar preview
-  const av=document.getElementById('mPhotoAvatar');
+  const av=document.getElementById('mAvatarPreview');
   if(av){
     av.style.background=m.color;
     av.innerHTML=m.photo?`<img src="${m.photo}" style="width:100%;height:100%;object-fit:cover">`:m.name.charAt(0);
@@ -857,7 +857,7 @@ function uploadPhotoInModal(){
           const m=members.find(x=>x.id===editMId);
           if(m) m.photo=dataUrl;
         }
-        const av=document.getElementById('mPhotoAvatar');
+        const av=document.getElementById('mAvatarPreview');
         av.innerHTML=`<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover">`;
         av.style.borderColor='var(--orange)';
         document.getElementById('mRemovePhotoBtn').style.display='block';
@@ -875,7 +875,7 @@ function removePhotoInModal(){
     const m=members.find(x=>x.id===editMId);
     if(m) m.photo=null;
   }
-  const av=document.getElementById('mPhotoAvatar');
+  const av=document.getElementById('mAvatarPreview');
   const name=document.getElementById('mName').value||'?';
   av.style.background=selColor;
   av.innerHTML=`<span>${name.charAt(0)}</span>`;
@@ -2240,39 +2240,63 @@ function renderNotes(){
   }).join('');
 }
 function addNote(){
-  // build modal
   const existing = document.getElementById('noteAddModal');
   if(existing) existing.remove();
   const NOTE_COLORS_LOCAL = ['#FEF3D7','#E1F5EE','#EEF0FE','#FFE8F0','#FAECE7','#fff'];
-  let selNoteColor = NOTE_COLORS_LOCAL[0];
+  window._noteColor = NOTE_COLORS_LOCAL[0];
+  window._noteAuthorId = members[0]?.id;
+
+  const memberChips = members.map(m=>`
+    <div class="note-author-chip" data-id="${m.id}" onclick="selectNoteAuthor(${m.id})"
+      style="display:flex;align-items:center;gap:6px;padding:5px 12px 5px 5px;border-radius:30px;border:2px solid ${m===members[0]?'var(--orange)':'var(--border)'};background:${m===members[0]?'#FFF3EE':'var(--bg)'};cursor:pointer;transition:all .15s">
+      <div style="width:22px;height:22px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">
+        ${m.photo?`<img src="${m.photo}" style="width:100%;height:100%;object-fit:cover">`:`${m.name.charAt(0)}`}
+      </div>
+      <span style="font-size:12px;font-weight:500">${m.name}</span>
+    </div>`).join('');
+
   const ov = document.createElement('div');
   ov.id='noteAddModal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)';
   ov.innerHTML=`<div style="background:#fff;border-radius:22px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.18)">
     <div style="font-size:16px;font-weight:700;margin-bottom:14px">📝 新增備忘錄</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:7px">誰寫的？</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="noteAuthorList">${memberChips}</div>
+    </div>
     <textarea id="noteTA" placeholder="輸入備忘事項、連結、提醒...&#10;貼上 URL 會自動變成連結" rows="4"
       style="width:100%;padding:10px 12px;border:1.5px solid rgba(0,0,0,.1);border-radius:11px;font-size:14px;font-family:'Noto Sans TC',sans-serif;resize:vertical;outline:none;line-height:1.65;background:#F7F3ED"></textarea>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
-      <span style="font-size:12px;color:#7A7570">顏色：</span>
-      ${NOTE_COLORS_LOCAL.map(c=>`<div onclick="this.parentNode.querySelectorAll('.ncs').forEach(x=>x.style.outline='none');this.style.outline='2.5px solid #333';window._noteColor='${c}'" class="ncs" style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;border:1px solid rgba(0,0,0,.1);${c===NOTE_COLORS_LOCAL[0]?'outline:2.5px solid #333':''}"></div>`).join('')}
+    <div style="display:flex;align-items:center;gap:7px;margin-top:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted)">顏色：</span>
+      ${NOTE_COLORS_LOCAL.map(c=>`<div onclick="document.querySelectorAll('.ncs').forEach(x=>x.style.outline='none');this.style.outline='2.5px solid #333';window._noteColor='${c}'" class="ncs" style="width:20px;height:20px;border-radius:50%;background:${c};cursor:pointer;border:1px solid rgba(0,0,0,.1);${c===NOTE_COLORS_LOCAL[0]?'outline:2.5px solid #333':''}"></div>`).join('')}
       <div style="margin-left:auto;display:flex;gap:8px">
         <button onclick="document.getElementById('noteAddModal').remove()" style="padding:7px 14px;border-radius:10px;border:1.5px solid rgba(0,0,0,.1);background:none;font-size:13px;cursor:pointer;font-family:'Noto Sans TC',sans-serif">取消</button>
         <button onclick="saveNote()" style="padding:7px 16px;border-radius:10px;background:#FF6B35;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif">新增</button>
       </div>
     </div>
   </div>`;
-  window._noteColor = NOTE_COLORS_LOCAL[0];
   document.body.appendChild(ov);
   ov.onclick = e => { if(e.target===ov) ov.remove(); };
   document.getElementById('noteTA').focus();
 }
+
+function selectNoteAuthor(id){
+  window._noteAuthorId = id;
+  const m = members.find(x=>x.id===id);
+  document.querySelectorAll('.note-author-chip').forEach(el=>{
+    const isSelected = parseInt(el.dataset.id)===id;
+    el.style.borderColor = isSelected?'var(--orange)':'var(--border)';
+    el.style.background = isSelected?'#FFF3EE':'var(--bg)';
+  });
+}
+
 function cancelNote(){ document.getElementById('noteAddModal')?.remove(); }
 function saveNote(){
   const ta = document.getElementById('noteTA');
   const text = ta?.value.trim();
   if(!text){ toast('請輸入內容！'); return; }
   const color = window._noteColor || '#FEF3D7';
-  const authorId = members[0]?.id;
+  const authorId = window._noteAuthorId || members[0]?.id;
   notes.push({id:noteIdCnt++, text, authorId, ts:Date.now(), color});
   document.getElementById('noteAddModal')?.remove();
   renderNotes();
