@@ -1777,22 +1777,40 @@ function renderDashboard(expenses, members){
     </div>`;
 
   // ── Per-member summary (compact) ──
+  // balances already computed above: balances[id] = paid - owed (+ = gets back, - = owes)
   const memberBars = `
     <div>
-      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">各人消費</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;letter-spacing:.3px">各人結算</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
         ${members.map(m=>{
-          const myAmt = Math.round(memberOwed[m.id]||0);
           const myPaid = expenses.filter(e=>e.payerId===m.id).reduce((s,e)=>s+e.amount,0);
-          return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer" onclick="openPersonalDetail(${m.id})">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <div style="width:28px;height:28px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">${renderAvatar(m)}</div>
-              <span style="font-size:12px;font-weight:700">${m.name}</span>
+          const myOwedAmt = Math.round(memberOwed[m.id]||0);
+          const diff = Math.round(balances[m.id]||0);
+          const isEven = Math.abs(diff) < 5;
+          const getsBack = diff > 0;
+          // status text
+          const statusColor = isEven ? '#1D9E75' : getsBack ? '#1D9E75' : '#E24B4A';
+          const statusText = isEven
+            ? '✓ 帳已結清'
+            : getsBack
+              ? '可以收回 ฿'+Math.abs(diff).toLocaleString()
+              : '還需還款 ฿'+Math.abs(diff).toLocaleString();
+          const statusSub = isEven
+            ? '大家都平了'
+            : getsBack
+              ? '你幫大家墊了比較多'
+              : '你消費比付款多';
+          return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px" onclick="openPersonalDetail(${m.id})">
+            <div style="width:40px;height:40px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">${renderAvatar(m)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:700;margin-bottom:3px">${m.name}</div>
+              <div style="font-size:11px;color:var(--muted)">幫大家付了 ฿${myPaid.toLocaleString()} · 自己該付 ฿${myOwedAmt.toLocaleString()}</div>
             </div>
-            <div style="font-size:11px;color:var(--muted)">應付</div>
-            <div style="font-size:17px;font-weight:700;color:${m.color}">฿${myAmt.toLocaleString()}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">已付出 ฿${myPaid.toLocaleString()}</div>
-            <div style="font-size:10px;color:var(--orange);margin-top:4px">點擊看明細 ›</div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:14px;font-weight:700;color:${statusColor}">${statusText}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">${statusSub}</div>
+            </div>
+            <span style="color:var(--muted);font-size:16px">›</span>
           </div>`;
         }).join('')}
       </div>
