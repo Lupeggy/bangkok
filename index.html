@@ -1777,7 +1777,17 @@ function renderDashboard(expenses, members){
     </div>`;
 
   // ── Per-member summary (compact) ──
-  // balances already computed above: balances[id] = paid - owed (+ = gets back, - = owes)
+  // Compute balances inside renderDashboard (standalone)
+  const paidD = {}, owedD = {};
+  members.forEach(m => { paidD[m.id]=0; owedD[m.id]=0; });
+  expenses.forEach(e => {
+    if(paidD[e.payerId]!==undefined) paidD[e.payerId]+=e.amount;
+    const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(m=>m.id);
+    sp.forEach(sid=>{ if(owedD[sid]!==undefined) owedD[sid]+=e.amount/sp.length; });
+  });
+  const balances = {};
+  members.forEach(m => balances[m.id]=(paidD[m.id]||0)-(owedD[m.id]||0));
+
   const memberBars = `
     <div>
       <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;letter-spacing:.3px">各人結算</div>
@@ -2006,6 +2016,7 @@ function switchBTab(idx){
     document.getElementById('btab'+i).classList.toggle('active', i===idx);
     document.getElementById('btabPanel'+i).style.display = i===idx?'block':'none';
   });
+  renderBudget();
 }
 
 // ============ WEATHER ============
@@ -2461,8 +2472,23 @@ function delNote(id){
 // ============ FIREBASE SYNC ============
 let db=null,_isSyncing=false;
 async function initFirebase(){
-  const {initializeApp}=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-  const {getFirestore,doc,setDoc,onSnapshot,getDoc}=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  let firebaseApp, firebaseFirestore;
+  const FIREBASE_CDNS = [
+    ['https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js',
+     'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js'],
+    ['https://unpkg.com/firebase@10.12.2/app/dist/index.esm2017.js',
+     'https://unpkg.com/firebase@10.12.2/firestore/dist/index.esm2017.js'],
+  ];
+  for(const [appUrl, fsUrl] of FIREBASE_CDNS){
+    try{
+      firebaseApp = await import(appUrl);
+      firebaseFirestore = await import(fsUrl);
+      break;
+    } catch(e){ console.warn('CDN failed, trying next:', appUrl); }
+  }
+  if(!firebaseApp) throw new Error('All Firebase CDNs failed');
+  const {initializeApp} = firebaseApp;
+  const {getFirestore,doc,setDoc,onSnapshot,getDoc} = firebaseFirestore;
   const app=initializeApp(FIREBASE_CONFIG);
   db=getFirestore(app);
   window._fsDoc=doc(db,'trips',ROOM_ID);
@@ -2500,7 +2526,7 @@ function startSync(){
   });
 }
 
-function renderAll(){updateHero();formatDateBadge();renderBanner();renderPool();renderSchedule();renderMC();renderNotes();applyTripSettings();}
+function renderAll(){updateHero();formatDateBadge();renderBanner();renderPool();renderSchedule();renderMC();renderNotes();applyTripSettings();renderBudget();}
 
 // ============ LOGIN + BOOT ============
 document.body.insertAdjacentHTML('beforeend',`
