@@ -415,7 +415,13 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-
 <section id="budget" class="section">
   <div class="sec-h">
     <div><h2>費用分攤</h2></div>
-    <button class="obtn" onclick="openAddExp()" style="padding:10px 20px;font-size:14px">+ 新增消費</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:3px;gap:2px">
+        <button id="curTHB" onclick="setCurrency('THB')" style="padding:5px 12px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans TC',sans-serif;background:var(--orange);color:#fff;transition:all .15s">฿ THB</button>
+        <button id="curTWD" onclick="setCurrency('TWD')" style="padding:5px 12px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans TC',sans-serif;background:none;color:var(--muted);transition:all .15s">NT$ TWD</button>
+      </div>
+      <button class="obtn" onclick="openAddExp()" style="padding:10px 20px;font-size:14px">+ 新增消費</button>
+    </div>
   </div>
 
   <!-- Tab bar -->
@@ -1512,10 +1518,10 @@ function renderBudget(){
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${py.color};margin-right:3px"></span>
           ${py.name} 付款
         </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px">分攤：${splitNames} 各 ฿${per.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px">分攤：${splitNames} 各 ${fmt(per)}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div class="er-amt">฿ ${e.amount.toLocaleString()}</div>
+        <div class="er-amt">${fmt(e.amount)}</div>
         <button class="er-del" onclick="openEditExp(${e.id})" style="opacity:.5;font-size:11px;padding:1px 5px;margin-top:2px">✏️</button>
         <button class="er-del" onclick="delExp(${e.id})" style="opacity:.5">✕</button>
       </div>
@@ -1527,7 +1533,7 @@ function renderBudget(){
   const cntEl = document.getElementById('recCnt');
   if(cntEl) cntEl.textContent = expenses.length + ' 筆';
   const spTotalEl = document.getElementById('spTotal');
-  if(spTotalEl) spTotalEl.textContent = '總計 ฿' + total.toLocaleString();
+  if(spTotalEl) spTotalEl.textContent = '總計 '+fmt(total);
 
   // ── Split: who paid what, who owes whom (handles partial splits) ──
   const paid = {};    // total paid by each person
@@ -1583,7 +1589,7 @@ function renderBudget(){
             </div>
             <div style="display:flex;flex-direction:column;align-items:center;padding:0 4px">
               <div style="font-size:18px;color:var(--muted)">→</div>
-              <div style="font-size:11px;color:var(--orange);font-weight:700;white-space:nowrap">฿ ${t.amt.toLocaleString()}</div>
+              <div style="font-size:11px;color:var(--orange);font-weight:700;white-space:nowrap">${fmt(t.amt)}</div>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
               <div style="width:34px;height:34px;border-radius:50%;background:${t.to.color};display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">${renderAvatar(t.to)}</div>
@@ -1601,6 +1607,12 @@ function renderBudget(){
 
   // ── Dashboard ──
   renderDashboard(expenses, members);
+
+  // ── Currency button states ──
+  ['THB','TWD'].forEach(c=>{
+    const btn=document.getElementById('cur'+c);
+    if(btn){ btn.style.background=currency.code===c?'var(--orange)':'none'; btn.style.color=currency.code===c?'#fff':'var(--muted)'; }
+  });
 
   // ── Payer dropdown ──
   const payerEl = document.getElementById('epPayer');
@@ -1733,12 +1745,12 @@ function renderDashboard(expenses, members){
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
       <div style="background:linear-gradient(135deg,#FF6B35,#F4B942);border-radius:14px;padding:14px;color:#fff">
         <div style="font-size:11px;opacity:.85">總消費</div>
-        <div style="font-size:22px;font-weight:700;margin-top:2px">฿${total.toLocaleString()}</div>
+        <div style="font-size:22px;font-weight:700;margin-top:2px">${fmt(total)}</div>
         <div style="font-size:10px;opacity:.8;margin-top:2px">${expenses.length} 筆記錄</div>
       </div>
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px">
         <div style="font-size:11px;color:var(--muted)">人均消費</div>
-        <div style="font-size:22px;font-weight:700;margin-top:2px;color:var(--text)">฿${perPerson.toLocaleString()}</div>
+        <div style="font-size:22px;font-weight:700;margin-top:2px;color:var(--text)">${fmt(perPerson)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:2px">${n} 人平攤</div>
       </div>
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px">
@@ -1747,7 +1759,7 @@ function renderDashboard(expenses, members){
           const top = Object.entries(catTotals).sort((a,b)=>b[1]-a[1])[0];
           const cm = CAT_META[top[0]];
           return `<div style="font-size:20px;font-weight:700;margin-top:2px;color:${cm.color}">${cm.label.split(' ')[0]}</div>
-                  <div style="font-size:10px;color:var(--muted);margin-top:2px">฿${top[1].toLocaleString()}</div>`;
+                  <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmt(top[1])}</div>`;
         })()}
       </div>
     </div>`;
@@ -1766,7 +1778,7 @@ function renderDashboard(expenses, members){
             <span style="font-size:13px;font-weight:500">${cm.label}</span>
             <div style="display:flex;gap:8px;align-items:center">
               <span style="font-size:11px;color:var(--muted)">${pct}%</span>
-              <span style="font-size:13px;font-weight:700;color:${cm.color}">฿${amt.toLocaleString()}</span>
+              <span style="font-size:13px;font-weight:700;color:${cm.color}">${fmt(amt)}</span>
             </div>
           </div>
           <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
@@ -1803,8 +1815,8 @@ function renderDashboard(expenses, members){
           const statusText = isEven
             ? '✓ 帳已結清'
             : getsBack
-              ? '可以收回 ฿'+Math.abs(diff).toLocaleString()
-              : '還需還款 ฿'+Math.abs(diff).toLocaleString();
+              ? '可以收回 '+fmt(Math.abs(diff))
+              : '還需還款 '+fmt(Math.abs(diff));
           const statusSub = isEven
             ? '大家都平了'
             : getsBack
@@ -1836,179 +1848,226 @@ function openPersonalDetail(memberId){
 
   const catM={food:{i:'🍜',bg:'#FEF3D7'},hotel:{i:'🏨',bg:'#EEF0FE'},sight:{i:'🎡',bg:'#E1F5EE'},transport:{i:'🚇',bg:'#EAF3DE'},shop:{i:'🛍',bg:'#FEE8E1'}};
 
-  // What I paid out (on behalf of group)
-  const myPaidExps = expenses.filter(e=>e.payerId===m.id);
-  const totalPaid = myPaidExps.reduce((s,e)=>s+e.amount,0);
+  // ── Compute balances ──
+  const paidD={}, owedD={};
+  members.forEach(x=>{paidD[x.id]=0;owedD[x.id]=0;});
+  expenses.forEach(e=>{
+    if(paidD[e.payerId]!==undefined) paidD[e.payerId]+=e.amount;
+    const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
+    sp.forEach(sid=>{if(owedD[sid]!==undefined) owedD[sid]+=e.amount/sp.length;});
+  });
+  const myPaid   = paidD[m.id]||0;
+  const myOwed   = owedD[m.id]||0;
+  const diff     = myPaid - myOwed;
+  const isEven   = Math.abs(diff)<5;
+  const getsBack = diff>0;
 
-  // What I owe (my share of all expenses I'm part of)
+  // My expenses I paid (代付)
+  const myPaidExps = expenses.filter(e=>e.payerId===m.id);
+  // All expenses I'm split into
   const myOwedExps = expenses.filter(e=>{
     const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
     return sp.includes(m.id);
   });
-  const totalOwed = myOwedExps.reduce((s,e)=>{
-    const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
-    return s+e.amount/sp.length;
-  },0);
 
-  const diff = totalPaid - totalOwed; // + = gets back, - = owes
-
-  // Who owes whom — settle up for this person specifically
-  // Re-run settle algorithm from renderBudget context
-  const paid2={}, owed2={};
-  members.forEach(x=>{paid2[x.id]=0;owed2[x.id]=0;});
-  expenses.forEach(e=>{
-    if(paid2[e.payerId]!==undefined) paid2[e.payerId]+=e.amount;
-    const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
-    sp.forEach(sid=>{if(owed2[sid]!==undefined) owed2[sid]+=e.amount/sp.length;});
-  });
+  // Settle transactions for this person
   const balances2={};
-  members.forEach(x=>balances2[x.id]=(paid2[x.id]||0)-(owed2[x.id]||0));
-  // transactions involving this person
+  members.forEach(x=>balances2[x.id]=(paidD[x.id]||0)-(owedD[x.id]||0));
   const creditors=members.filter(x=>balances2[x.id]>0.5).map(x=>({...x,bal:balances2[x.id]})).sort((a,b)=>b.bal-a.bal);
   const debtors=members.filter(x=>balances2[x.id]<-0.5).map(x=>({...x,bal:-balances2[x.id]})).sort((a,b)=>b.bal-a.bal);
-  const allTxns=[];
-  const cBals=creditors.map(c=>c.bal), dBals=debtors.map(d=>d.bal);
-  let ci=0,di2=0;
-  while(ci<creditors.length&&di2<debtors.length){
-    const amt=Math.min(cBals[ci],dBals[di2]);
-    if(amt>0.5) allTxns.push({from:debtors[di2],to:creditors[ci],amt:Math.round(amt)});
-    cBals[ci]-=amt; dBals[di2]-=amt;
-    if(cBals[ci]<0.5)ci++; if(dBals[di2]<0.5)di2++;
+  const allTxns=[]; const cB=creditors.map(c=>c.bal), dB=debtors.map(d=>d.bal);
+  let ci=0,di=0;
+  while(ci<creditors.length&&di<debtors.length){
+    const amt=Math.min(cB[ci],dB[di]);
+    if(amt>0.5) allTxns.push({from:debtors[di],to:creditors[ci],amt:Math.round(amt)});
+    cB[ci]-=amt; dB[di]-=amt;
+    if(cB[ci]<0.5)ci++; if(dB[di]<0.5)di++;
   }
-  // only txns involving this member
-  const myTxns = allTxns.filter(t=>t.from.id===m.id||t.to.id===m.id);
+  const myTxns=allTxns.filter(t=>t.from.id===m.id||t.to.id===m.id);
 
-  // Status summary
-  const isEven = Math.abs(diff)<5;
-  const getsBack = diff>0;
-  const statusBg = isEven?'#E1F5EE':getsBack?'#E1F5EE':'#FEE8E1';
+  // Category breakdown of what I owe
+  const myCats={};
+  Object.keys(CAT_META).forEach(k=>myCats[k]=0);
+  myOwedExps.forEach(e=>{
+    const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
+    const share=e.amount/sp.length;
+    if(myCats[e.cat]!==undefined) myCats[e.cat]+=share; else myCats['shop']+=share;
+  });
+  const myCatList=Object.entries(myCats).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1]);
+
+  // ── Status badge ──
+  const statusBg    = isEven?'#E1F5EE':getsBack?'#E1F5EE':'#FEE8E1';
   const statusColor = isEven?'#0A5C40':getsBack?'#0A5C40':'#8B2500';
   const statusEmoji = isEven?'✅':getsBack?'💰':'💸';
-  const statusTitle = isEven?'帳已結清！':getsBack?`可以收回 ฿${Math.abs(Math.round(diff)).toLocaleString()}`:`需要還款 ฿${Math.abs(Math.round(diff)).toLocaleString()}`;
-  const statusSub = isEven?'這趟旅行你的帳完全平了':getsBack?'你幫大家墊的比你分到的多':'你分到的比你付出去的多';
+  const statusTitle = isEven?'帳已結清':getsBack?`可以收回 ${fmt(Math.round(Math.abs(diff)))}`:`需還款 ${fmt(Math.round(Math.abs(diff)))}`;
 
-  // Paid rows (代付紀錄)
-  const paidRows = myPaidExps.length>0 ? myPaidExps.map(e=>{
-    const cm=catM[e.cat]||catM.food;
-    const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
-    const names=sp.map(sid=>members.find(x=>x.id===sid)?.name||'?').join('、');
-    const myShareOfThis=Math.round(e.amount/sp.length);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.05)">
-      <div style="width:34px;height:34px;border-radius:9px;background:${cm.bg};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${cm.i}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${e.name}</div>
-        <div style="font-size:10px;color:#7A7570">分攤給：${names}</div>
-        <div style="font-size:10px;color:#7A7570">我自己這筆分到 ฿${myShareOfThis.toLocaleString()}</div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:13px;font-weight:700">฿${e.amount.toLocaleString()}</div>
-        <div style="font-size:10px;color:#1D9E75">我付的</div>
-      </div>
-    </div>`;
-  }).join('') : '<div style="font-size:12px;color:#7A7570;padding:12px 0;text-align:center">這趟你沒有幫大家代付</div>';
-
-  // Owed rows (我的分攤)
-  const owedRows = myOwedExps.filter(e=>e.payerId!==m.id).length>0
-    ? myOwedExps.filter(e=>e.payerId!==m.id).map(e=>{
-      const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
-      const myShare=Math.round(e.amount/sp.length);
-      const payer=members.find(x=>x.id===e.payerId);
-      const cm=catM[e.cat]||catM.food;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.05)">
-        <div style="width:34px;height:34px;border-radius:9px;background:${cm.bg};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${cm.i}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600">${e.name}</div>
-          <div style="font-size:10px;color:#7A7570">${payer?payer.name+' 幫忙付了':''} · 共 ${sp.length} 人分</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:13px;font-weight:700;color:#E24B4A">฿${myShare.toLocaleString()}</div>
-          <div style="font-size:10px;color:#7A7570">我的份</div>
-        </div>
-      </div>`;
-    }).join('')
-    : '<div style="font-size:12px;color:#7A7570;padding:12px 0;text-align:center">沒有別人幫你代付的消費</div>';
-
-  // Settle section
+  // ── Build settle rows ──
   const settleHtml = myTxns.length===0
-    ? `<div style="background:#E1F5EE;border-radius:12px;padding:14px;text-align:center;font-size:13px;color:#0A5C40;font-weight:600">✅ 不需要任何轉帳，帳已結清！</div>`
+    ? `<div style="background:#E1F5EE;border-radius:10px;padding:12px 14px;font-size:13px;color:#0A5C40;font-weight:600;text-align:center">✅ 不需轉帳，帳已結清！</div>`
     : myTxns.map(t=>{
-        const iOwe = t.from.id===m.id;
-        const other = iOwe?t.to:t.from;
-        const bg = iOwe?'#FEE8E1':'#E1F5EE';
-        const color = iOwe?'#8B2500':'#0A5C40';
-        const label = iOwe?`你 → ${other.name}`:`${other.name} → 你`;
-        const verb = iOwe?'轉給':'收到';
-        return `<div style="background:${bg};border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
-          <div style="width:36px;height:36px;border-radius:50%;background:${other.color};display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">${renderAvatar(other)}</div>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:700;color:${color}">${label}</div>
-            <div style="font-size:11px;color:${color};opacity:.75">${verb} ฿${t.amt.toLocaleString()}</div>
-          </div>
-          <div style="font-size:20px;font-weight:800;color:${color}">฿${t.amt.toLocaleString()}</div>
+        const iOwe=t.from.id===m.id;
+        const other=iOwe?t.to:t.from;
+        const bg=iOwe?'#FEE8E1':'#E1F5EE';
+        const color=iOwe?'#8B2500':'#0A5C40';
+        return `<div style="background:${bg};border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <div style="width:32px;height:32px;border-radius:50%;background:${other.color};display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">${renderAvatar(other)}</div>
+          <div style="flex:1;font-size:13px;font-weight:600;color:${color}">${iOwe?`你轉給 ${other.name}`:`${other.name} 轉給你`}</div>
+          <div style="font-size:16px;font-weight:800;color:${color}">${fmt(t.amt)}</div>
         </div>`;
       }).join('');
+
+  // ── Tab 1: 團體帳 ──
+  const groupTab = `
+    <div style="padding:0 16px 16px">
+      <!-- Status -->
+      <div style="background:${statusBg};border-radius:12px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:28px">${statusEmoji}</div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:${statusColor}">${statusTitle}</div>
+          <div style="font-size:11px;color:${statusColor};opacity:.7;margin-top:2px">${isEven?'大家都平了':getsBack?'你幫大家墊的比你分到的多':'你消費的比你付出去的多'}</div>
+        </div>
+      </div>
+
+      <!-- 3 stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:#F7F3ED;border-radius:10px;padding:11px;text-align:center">
+          <div style="font-size:10px;color:#7A7570;margin-bottom:3px">我付出去</div>
+          <div style="font-size:16px;font-weight:700">${fmt(Math.round(myPaid))}</div>
+          <div style="font-size:9px;color:#7A7570;margin-top:2px">${myPaidExps.length} 筆</div>
+        </div>
+        <div style="background:#F7F3ED;border-radius:10px;padding:11px;text-align:center">
+          <div style="font-size:10px;color:#7A7570;margin-bottom:3px">我該付</div>
+          <div style="font-size:16px;font-weight:700">${fmt(Math.round(myOwed))}</div>
+          <div style="font-size:9px;color:#7A7570;margin-top:2px">${myOwedExps.length} 筆</div>
+        </div>
+        <div style="background:${statusBg};border-radius:10px;padding:11px;text-align:center">
+          <div style="font-size:10px;color:${statusColor};margin-bottom:3px">${isEven?'結果':'差額'}</div>
+          <div style="font-size:16px;font-weight:700;color:${statusColor}">${isEven?'平了':fmt(Math.abs(Math.round(diff)))}</div>
+          <div style="font-size:9px;color:${statusColor};margin-top:2px">${isEven?'🎉':getsBack?'應收':'應還'}</div>
+        </div>
+      </div>
+
+      <!-- Settle -->
+      <div style="font-size:12px;font-weight:700;color:#7A7570;margin-bottom:8px">如何結清</div>
+      ${settleHtml}
+
+      <!-- Paid on behalf -->
+      ${myPaidExps.length>0?`
+      <div style="font-size:12px;font-weight:700;color:#7A7570;margin:14px 0 8px">我幫大家付的</div>
+      ${myPaidExps.map(e=>{
+        const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
+        const names=sp.map(sid=>members.find(x=>x.id===sid)?.name||'?').join('、');
+        const cm=catM[e.cat]||catM.food;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.05)">
+          <div style="width:30px;height:30px;border-radius:8px;background:${cm.bg};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">${cm.i}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500">${e.name}</div>
+            <div style="font-size:10px;color:#7A7570">分攤給 ${names}</div>
+          </div>
+          <div style="font-size:13px;font-weight:700">${fmt(e.amount)}</div>
+        </div>`;
+      }).join('')}`:''}
+    </div>`;
+
+  // ── Tab 2: 我的消費 Dashboard ──
+  const myTotal = Math.round(myOwed);
+  const catBarsHtml = myCatList.map(([cat,amt])=>{
+    const cm=CAT_META[cat]||CAT_META.shop;
+    const pct=myTotal>0?Math.round(amt/myTotal*100):0;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px">${cm.label}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:#7A7570">${pct}%</span>
+          <span style="font-size:13px;font-weight:700;color:${cm.color}">${fmt(Math.round(amt))}</span>
+        </div>
+      </div>
+      <div style="height:7px;background:rgba(0,0,0,.06);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.max(pct,2)}%;background:${cm.color};border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // All my expenses (what I'm split into, grouped)
+  const myExpRows = myOwedExps.map(e=>{
+    const sp=(e.splitIds&&e.splitIds.length>0)?e.splitIds:members.map(x=>x.id);
+    const myShare=Math.round(e.amount/sp.length);
+    const payer=members.find(x=>x.id===e.payerId);
+    const iPayedThis=e.payerId===m.id;
+    const cm=catM[e.cat]||catM.food;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.05)">
+      <div style="width:30px;height:30px;border-radius:8px;background:${cm.bg};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">${cm.i}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500">${e.name}</div>
+        <div style="font-size:10px;color:#7A7570">${iPayedThis?'我付的':payer?payer.name+' 代付':''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:700">${fmt(myShare)}</div>
+        <div style="font-size:9px;color:#7A7570">我的份</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const dashTab = `
+    <div style="padding:0 16px 16px">
+      <!-- Big total -->
+      <div style="background:linear-gradient(135deg,#FF6B35,#F4B942);border-radius:14px;padding:18px;margin-bottom:14px;color:#fff">
+        <div style="font-size:12px;opacity:.85;margin-bottom:4px">這趟旅行我花了</div>
+        <div style="font-size:36px;font-weight:700;line-height:1">${fmt(myTotal)}</div>
+        <div style="font-size:11px;opacity:.75;margin-top:6px">${myOwedExps.length} 筆消費 · 平均每天 ${fmt(Math.round(myTotal/Math.max(1,Math.round((new Date(tripDates.returnD)-new Date(tripDates.depart))/86400000))))}</div>
+      </div>
+
+      <!-- Category bars -->
+      ${myCatList.length>0?`
+        <div style="font-size:12px;font-weight:700;color:#7A7570;margin-bottom:10px">消費類別</div>
+        ${catBarsHtml}
+        <div style="height:1px;background:rgba(0,0,0,.06);margin:14px 0"></div>
+      `:''}
+
+      <!-- All expense list -->
+      <div style="font-size:12px;font-weight:700;color:#7A7570;margin-bottom:8px">消費明細</div>
+      ${myExpRows||'<div style="font-size:12px;color:#7A7570;text-align:center;padding:16px">尚無消費記錄</div>'}
+    </div>`;
 
   const existing=document.getElementById('personalDetailModal'); if(existing) existing.remove();
   const ov=document.createElement('div');
   ov.id='personalDetailModal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:flex-end;backdrop-filter:blur(4px)';
 
-  ov.innerHTML=`<div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:85vh;overflow-y:auto">
-    <!-- Header -->
-    <div style="padding:20px 20px 0;display:flex;align-items:center;gap:12px">
-      <div style="width:46px;height:46px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">${renderAvatar(m)}</div>
-      <div style="flex:1">
-        <div style="font-size:18px;font-weight:700">${m.name}</div>
-        <div style="font-size:12px;color:#7A7570">這趟旅行的個人帳單</div>
+  ov.innerHTML=`<div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:88vh;display:flex;flex-direction:column">
+    <!-- Fixed header -->
+    <div style="padding:18px 16px 0;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="width:42px;height:42px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">${renderAvatar(m)}</div>
+        <div style="flex:1"><div style="font-size:17px;font-weight:700">${m.name}</div></div>
+        <button onclick="document.getElementById('personalDetailModal').remove()" style="background:rgba(0,0,0,.06);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
-      <button onclick="document.getElementById('personalDetailModal').remove()" style="background:rgba(0,0,0,.06);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
-    </div>
-
-    <!-- Status banner -->
-    <div style="margin:16px 20px;background:${statusBg};border-radius:14px;padding:16px">
-      <div style="font-size:22px;margin-bottom:4px">${statusEmoji}</div>
-      <div style="font-size:17px;font-weight:700;color:${statusColor}">${statusTitle}</div>
-      <div style="font-size:12px;color:${statusColor};opacity:.75;margin-top:3px">${statusSub}</div>
-    </div>
-
-    <!-- 2 stat cards -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px;margin-bottom:20px">
-      <div style="background:#F7F3ED;border-radius:12px;padding:13px">
-        <div style="font-size:11px;color:#7A7570;margin-bottom:4px">💳 我幫大家付了</div>
-        <div style="font-size:20px;font-weight:700"">฿${Math.round(totalPaid).toLocaleString()}</div>
-        <div style="font-size:10px;color:#7A7570;margin-top:2px">${myPaidExps.length} 筆代付</div>
-      </div>
-      <div style="background:#F7F3ED;border-radius:12px;padding:13px">
-        <div style="font-size:11px;color:#7A7570;margin-bottom:4px">🧾 我這趟該付</div>
-        <div style="font-size:20px;font-weight:700"">฿${Math.round(totalOwed).toLocaleString()}</div>
-        <div style="font-size:10px;color:#7A7570;margin-top:2px">${myOwedExps.length} 筆分攤</div>
+      <!-- Tab bar -->
+      <div style="display:flex;background:#F7F3ED;border-radius:10px;padding:3px;gap:3px;margin-bottom:14px">
+        <button id="ptab0" onclick="switchPersonalTab(0)" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans TC',sans-serif;background:var(--orange);color:#fff;transition:all .15s">👥 團體帳</button>
+        <button id="ptab1" onclick="switchPersonalTab(1)" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans TC',sans-serif;background:none;color:#7A7570;transition:all .15s">💰 我的消費</button>
       </div>
     </div>
-
-    <!-- Settle up -->
-    <div style="padding:0 20px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px">🔄 最後怎麼結清</div>
-      ${settleHtml}
-    </div>
-
-    <!-- Paid detail -->
-    <div style="padding:0 20px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px">💳 我幫大家付的（代付明細）</div>
-      <div style="font-size:11px;color:#7A7570;margin-bottom:10px">這些錢從你口袋掏出去的</div>
-      ${paidRows}
-    </div>
-
-    <!-- Owed detail -->
-    <div style="padding:0 20px;padding-bottom:32px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px">🧾 別人幫我代付的（我的份）</div>
-      <div style="font-size:11px;color:#7A7570;margin-bottom:10px">這些是你被分到、但別人先墊的</div>
-      ${owedRows}
+    <!-- Scrollable content -->
+    <div style="overflow-y:auto;flex:1">
+      <div id="ptabPanel0">${groupTab}</div>
+      <div id="ptabPanel1" style="display:none">${dashTab}</div>
     </div>
   </div>`;
 
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   document.body.appendChild(ov);
 }
+
+function switchPersonalTab(idx){
+  [0,1].forEach(i=>{
+    const btn=document.getElementById('ptab'+i);
+    const panel=document.getElementById('ptabPanel'+i);
+    if(btn){ btn.style.background=i===idx?'var(--orange)':'none'; btn.style.color=i===idx?'#fff':'#7A7570'; }
+    if(panel) panel.style.display=i===idx?'block':'none';
+  });
+}
+
 
 // ============ BUDGET TABS ============
 function switchBTab(idx){
@@ -2057,7 +2116,23 @@ function toast(msg){
 }
 
 // ============ DATE PICKER ============
-const TW_RATE = 0.9; // 1 THB ≈ 0.9 NTD approx
+// ============ CURRENCY ============
+let currency = { code: 'THB', symbol: '฿', rate: 1, label: '泰銖 ฿ THB' };
+const CURRENCIES = {
+  THB: { code:'THB', symbol:'฿',  rate:1,    label:'泰銖 ฿ THB' },
+  TWD: { code:'TWD', symbol:'NT$', rate:0.9,  label:'台幣 NT$ TWD' },
+};
+function setCurrency(code){
+  currency = CURRENCIES[code] || CURRENCIES.THB;
+  renderBudget();
+  saveAll();
+  toast('✅ 切換為 '+currency.label);
+}
+function fmt(thb){ // format THB amount in selected currency
+  const amt = Math.round(thb * currency.rate);
+  return currency.symbol + amt.toLocaleString();
+}
+const TW_RATE = 0.9; // kept for compat
 
 function openDatePicker(){
   document.getElementById('dpDepart').value = tripDates.depart;
@@ -2395,7 +2470,10 @@ function renderNotes(){
           <span style="font-size:10px;color:rgba(0,0,0,.4)">${m.name}</span>`:''}
           <span style="font-size:10px;color:rgba(0,0,0,.3)">${dt}</span>
         </div>
-        <button onclick="delNote(${n.id})" style="background:rgba(0,0,0,.08);border:none;border-radius:20px;padding:2px 9px;font-size:11px;cursor:pointer;color:rgba(0,0,0,.4)">刪除</button>
+        <div style="display:flex;gap:5px">
+          <button onclick="editNote(${n.id})" style="background:rgba(0,0,0,.06);border:none;border-radius:20px;padding:2px 9px;font-size:11px;cursor:pointer;color:rgba(0,0,0,.4)">編輯</button>
+          <button onclick="delNote(${n.id})" style="background:rgba(0,0,0,.08);border:none;border-radius:20px;padding:2px 9px;font-size:11px;cursor:pointer;color:rgba(0,0,0,.4)">刪除</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -2468,6 +2546,54 @@ function delNote(id){
   notes = notes.filter(n=>n.id!==id);
   renderNotes(); saveAll(); toast('已刪除備忘錄');
 }
+function editNote(id){
+  const n = notes.find(x=>x.id===id); if(!n) return;
+  const NOTE_COLORS_LOCAL = ['#FEF3D7','#E1F5EE','#EEF0FE','#FFE8F0','#FAECE7','#fff'];
+  window._noteColor = n.color || NOTE_COLORS_LOCAL[0];
+  window._noteAuthorId = n.authorId;
+  const existing = document.getElementById('noteAddModal'); if(existing) existing.remove();
+  const memberChips = members.map(m=>`
+    <div class="note-author-chip" data-id="${m.id}" onclick="selectNoteAuthor(${m.id})"
+      style="display:flex;align-items:center;gap:6px;padding:5px 12px 5px 5px;border-radius:30px;border:2px solid ${m.id===n.authorId?'var(--orange)':'var(--border)'};background:${m.id===n.authorId?'#FFF3EE':'var(--bg)'};cursor:pointer;transition:all .15s">
+      <div style="width:22px;height:22px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0">
+        ${m.photo?`<img src="${m.photo}" style="width:100%;height:100%;object-fit:cover">`:`${m.name.charAt(0)}`}
+      </div>
+      <span style="font-size:12px;font-weight:500">${m.name}</span>
+    </div>`).join('');
+  const ov = document.createElement('div');
+  ov.id='noteAddModal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)';
+  ov.innerHTML=`<div style="background:#fff;border-radius:22px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.18)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px">✏️ 編輯備忘錄</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:7px">誰寫的？</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="noteAuthorList">${memberChips}</div>
+    </div>
+    <textarea id="noteTA" rows="4"
+      style="width:100%;padding:10px 12px;border:1.5px solid rgba(0,0,0,.1);border-radius:11px;font-size:14px;font-family:'Noto Sans TC',sans-serif;resize:vertical;outline:none;line-height:1.65;background:#F7F3ED">${n.text}</textarea>
+    <div style="display:flex;align-items:center;gap:7px;margin-top:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted)">顏色：</span>
+      ${NOTE_COLORS_LOCAL.map(c=>`<div onclick="document.querySelectorAll('.ncs').forEach(x=>x.style.outline='none');this.style.outline='2.5px solid #333';window._noteColor='${c}'" class="ncs" style="width:20px;height:20px;border-radius:50%;background:${c};cursor:pointer;border:1px solid rgba(0,0,0,.1);${c===window._noteColor?'outline:2.5px solid #333':''}"></div>`).join('')}
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button onclick="document.getElementById('noteAddModal').remove()" style="padding:7px 14px;border-radius:10px;border:1.5px solid rgba(0,0,0,.1);background:none;font-size:13px;cursor:pointer;font-family:'Noto Sans TC',sans-serif">取消</button>
+        <button onclick="updateNote(${id})" style="padding:7px 16px;border-radius:10px;background:#FF6B35;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif">儲存</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  document.getElementById('noteTA').focus();
+}
+function updateNote(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  const text=document.getElementById('noteTA')?.value.trim();
+  if(!text){ toast('請輸入內容！'); return; }
+  n.text=text;
+  n.color=window._noteColor||n.color;
+  n.authorId=window._noteAuthorId||n.authorId;
+  document.getElementById('noteAddModal')?.remove();
+  renderNotes(); saveAll(); toast('✅ 備忘錄已更新');
+}
 
 // ============ FIREBASE SYNC ============
 let db=null,_isSyncing=false;
@@ -2496,7 +2622,7 @@ async function initFirebase(){
 }
 async function saveAll(){
   if(!db||_isSyncing)return;
-  const budgetTotal=parseInt(document.getElementById('budgetTotal')?.value)||42000;try{await window._setDoc(window._fsDoc,{members,scheduleData,spots,expenses,poolCards,expId,spId,tripDates,budgetCats,budgetTotal,notes,noteIdCnt,tripSettings,_ts:Date.now()});}
+  const budgetTotal=parseInt(document.getElementById('budgetTotal')?.value)||42000;try{await window._setDoc(window._fsDoc,{members,scheduleData,spots,expenses,poolCards,expId,spId,tripDates,budgetCats,budgetTotal,notes,noteIdCnt,tripSettings,currency,_ts:Date.now()});}
   catch(e){console.warn('save failed',e);}
 }
 function applyRemoteData(d){
@@ -2513,6 +2639,7 @@ function applyRemoteData(d){
   if(d.notes) notes=d.notes;
   if(d.noteIdCnt) noteIdCnt=d.noteIdCnt;
   if(d.tripSettings){ tripSettings=d.tripSettings; applyTripSettings(); }
+  if(d.currency) currency=d.currency;
 }
 function startSync(){
   window._onSnap(window._fsDoc,snap=>{
